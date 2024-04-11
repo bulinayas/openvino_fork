@@ -1539,9 +1539,13 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
 #if defined(__aarch64__)
     const int64_t groups = jcp.ngroups;
     const int64_t deformable_groups = jcp.dg;
-    const std::vector<int>& in_shape{jcp.mb, static_cast<int>(jcp.ic * groups), jcp.ih, jcp.iw};
-    const std::vector<int>& filter_shape{static_cast<int>(jcp.oc * groups), static_cast<int>(jcp.ic * groups), jcp.kh, jcp.kw};
-    const std::vector<int>& out_shape{jcp.mb, static_cast<int>(jcp.oc * groups), jcp.oh, jcp.ow};
+    // const std::vector<int>& in_shape{jcp.mb, static_cast<int>(jcp.ic * groups), jcp.ih, jcp.iw};
+    // const std::vector<int>& filter_shape{static_cast<int>(jcp.oc * groups), static_cast<int>(jcp.ic * groups), jcp.kh, jcp.kw};
+    // const std::vector<int>& out_shape{jcp.mb, static_cast<int>(jcp.oc * groups), jcp.oh, jcp.ow};
+
+    const std::vector<int>& in_shape{jcp.mb, static_cast<int>(jcp.ic), jcp.ih, jcp.iw};
+    const std::vector<int>& filter_shape{static_cast<int>(jcp.oc), static_cast<int>(jcp.ic), jcp.kh, jcp.kw};
+    const std::vector<int>& out_shape{jcp.mb, static_cast<int>(jcp.oc), jcp.oh, jcp.ow};
     const std::vector<int>& offset_shape{
         jcp.mb,
         static_cast<int>(deformable_groups * filter_shape[2] * filter_shape[3] * 2),
@@ -1553,9 +1557,28 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
     const std::vector<int> mask_shape = {offset_shape[0], offset_shape[1] / 2, offset_shape[2], offset_shape[3]};
     const std::vector<int>& strides{jcp.stride_h, jcp.stride_w};
     const std::vector<int>& dilation{jcp.dilate_h + 1, jcp.dilate_w + 1};
+    // const std::vector<int>& dilation{jcp.dilate_h, jcp.dilate_w};
     const std::vector<std::ptrdiff_t>& pads_begin{jcp.t_pad, jcp.l_pad};
 
     const bool bilinear_interpolation_pad = jcp.with_modulation;
+
+    std::cout << "MB = " << jcp.mb << "\n";
+    std::cout << "IC = " << jcp.ic << "\n";
+    std::cout << "IH = " << jcp.ih << "\n";
+    std::cout << "IW = " << jcp.iw << "\n";
+    std::cout << "OC = " << jcp.oc << "\n";
+    std::cout << "OH = " << jcp.oh << "\n";
+    std::cout << "OW = " << jcp.ow << "\n";
+    std::cout << "KH = " << jcp.kh << "\n";
+    std::cout << "KW = " << jcp.kw << "\n";
+    std::cout << "offset_shape[0] = " << offset_shape[0] << "\n";
+    std::cout << "offset_shape[1] = " << offset_shape[1] << "\n";
+    std::cout << "offset_shape[2] = " << offset_shape[2] << "\n";
+    std::cout << "offset_shape[3] = " << offset_shape[3] << "\n";
+    std::cout << "groups = " << jcp.ngroups << "\n";
+    std::cout << "deformable_groups = " << jcp.dg << "\n";
+    std::cout << "dilate_h = " << jcp.dilate_h << "\n";
+    std::cout << "dilate_w = " << jcp.dilate_w << "\n";
 
     opt_aarch::deformable_convolution_cpu(src,
                                           offsets,
