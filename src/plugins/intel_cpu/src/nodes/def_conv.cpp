@@ -1560,7 +1560,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
     // const std::vector<int>& dilation{jcp.dilate_h, jcp.dilate_w};
     const std::vector<std::ptrdiff_t>& pads_begin{jcp.t_pad, jcp.l_pad};
 
-    const bool bilinear_interpolation_pad = jcp.with_modulation;
+    const bool bilinear_interpolation_pad = jcp.with_bi_pad;
 
     std::cout << "MB = " << in_shape[0] << "\n";
     std::cout << "IC = " << in_shape[1] << "\n";
