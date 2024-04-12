@@ -1540,7 +1540,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
     const int64_t groups = jcp.ngroups;
     const int64_t deformable_groups = jcp.dg;
     const std::vector<int>& in_shape{jcp.mb, static_cast<int>(jcp.ic * groups), jcp.ih, jcp.iw};
-    const std::vector<int>& filter_shape{static_cast<int>(jcp.oc * groups), static_cast<int>(jcp.ic * groups), jcp.kh, jcp.kw};
+    const std::vector<int>& filter_shape{static_cast<int>(jcp.oc), static_cast<int>(jcp.ic), jcp.kh, jcp.kw};
     const std::vector<int>& out_shape{jcp.mb, static_cast<int>(jcp.oc * groups), jcp.oh, jcp.ow};
 
     // const std::vector<int>& in_shape{jcp.mb, static_cast<int>(jcp.ic), jcp.ih, jcp.iw};
@@ -1569,6 +1569,8 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
     std::cout << "OC = " << out_shape[1] << "\n";
     std::cout << "OH = " << out_shape[2] << "\n";
     std::cout << "OW = " << out_shape[3] << "\n";
+    std::cout << "KO = " << filter_shape[0] << "\n";
+    std::cout << "KI = " << filter_shape[1] << "\n";
     std::cout << "KH = " << filter_shape[2] << "\n";
     std::cout << "KW = " << filter_shape[3] << "\n";
     std::cout << "offset_shape[0] = " << offset_shape[0] << "\n";
