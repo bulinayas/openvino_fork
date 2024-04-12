@@ -1314,7 +1314,6 @@ void deformable_convolution_cpu(const T* in,
                                 const int64_t deformable_groups,
                                 const bool bilinear_interpolation_pad)
 {
-    std::cout << "MY CONV\n";
     const int MB = in_shape[0];
     const int OH = out_shape[2];
     const int OW = out_shape[3];
@@ -1497,8 +1496,7 @@ void deformable_convolution_cpu(const T* in,
                 for (int kw_off = 0; kw_off < KW * weiStrides[3]; kw_off += weiStrides[3]) {
                     // check if current addendum marked as equal zero
                     bool addendum_is_zero = (pSampledCoordsVector[sampledCoordIndex] != -1);
-                    // if (pSampledCoordsVector[sampledCoordIndex] != -1)
-                    // {
+
                     const int v11 = pSampledCoordsVector[sampledCoordIndex];
                     const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
                     const int v21 = pSampledCoordsVector[sampledCoordIndex + 2];
@@ -1508,13 +1506,7 @@ void deformable_convolution_cpu(const T* in,
                     val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];   // v21
                     val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];   // v22
 
-                    // d += (val * filters[weiIndex + kh_off + kw_off]);
                     d += ((val * filters[weiIndex + kh_off + kw_off]) * addendum_is_zero);
-                    // }
-                    // else
-                    // {
-                    //     sampledCoordIndex += sampledPointsPerPixel;
-                    // }
                 }
             }
         }
@@ -1542,10 +1534,6 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
     const std::vector<int>& in_shape{jcp.mb, static_cast<int>(jcp.ic * groups), jcp.ih, jcp.iw};
     const std::vector<int>& filter_shape{static_cast<int>(jcp.oc), static_cast<int>(jcp.ic), jcp.kh, jcp.kw};
     const std::vector<int>& out_shape{jcp.mb, static_cast<int>(jcp.oc * groups), jcp.oh, jcp.ow};
-
-    // const std::vector<int>& in_shape{jcp.mb, static_cast<int>(jcp.ic), jcp.ih, jcp.iw};
-    // const std::vector<int>& filter_shape{static_cast<int>(jcp.oc), static_cast<int>(jcp.ic), jcp.kh, jcp.kw};
-    // const std::vector<int>& out_shape{jcp.mb, static_cast<int>(jcp.oc), jcp.oh, jcp.ow};
     const std::vector<int>& offset_shape{
         jcp.mb,
         static_cast<int>(deformable_groups * filter_shape[2] * filter_shape[3] * 2),
@@ -1553,37 +1541,12 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
         out_shape[3],
     };
 
-    // const float* mask = nullptr;
     const std::vector<int> mask_shape = {offset_shape[0], offset_shape[1] / 2, offset_shape[2], offset_shape[3]};
     const std::vector<int>& strides{jcp.stride_h, jcp.stride_w};
     const std::vector<int>& dilation{jcp.dilate_h + 1, jcp.dilate_w + 1};
-    // const std::vector<int>& dilation{jcp.dilate_h, jcp.dilate_w};
     const std::vector<std::ptrdiff_t>& pads_begin{jcp.t_pad, jcp.l_pad};
 
     const bool bilinear_interpolation_pad = jcp.with_bi_pad;
-
-    std::cout << "MB = " << in_shape[0] << "\n";
-    std::cout << "IC = " << in_shape[1] << "\n";
-    std::cout << "IH = " << in_shape[2] << "\n";
-    std::cout << "IW = " << in_shape[3] << "\n";
-    std::cout << "OC = " << out_shape[1] << "\n";
-    std::cout << "OH = " << out_shape[2] << "\n";
-    std::cout << "OW = " << out_shape[3] << "\n";
-    std::cout << "KO = " << filter_shape[0] << "\n";
-    std::cout << "KI = " << filter_shape[1] << "\n";
-    std::cout << "KH = " << filter_shape[2] << "\n";
-    std::cout << "KW = " << filter_shape[3] << "\n";
-    std::cout << "offset_shape[0] = " << offset_shape[0] << "\n";
-    std::cout << "offset_shape[1] = " << offset_shape[1] << "\n";
-    std::cout << "offset_shape[2] = " << offset_shape[2] << "\n";
-    std::cout << "offset_shape[3] = " << offset_shape[3] << "\n";
-    std::cout << "groups = " << jcp.ngroups << "\n";
-    std::cout << "deformable_groups = " << jcp.dg << "\n";
-    std::cout << "dilate_h = " << dilation[0] << "\n";
-    std::cout << "dilate_w = " << dilation[1] << "\n";
-    std::cout << "p_t = " << pads_begin[0] << "\n";
-    std::cout << "p_l = " << pads_begin[1] << "\n";
-    std::cout << "bilinear_interpolation_pad = " << bilinear_interpolation_pad << "\n";
 
     opt_aarch::deformable_convolution_cpu(src,
                                           offsets,
