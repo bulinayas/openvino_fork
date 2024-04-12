@@ -1539,13 +1539,13 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
 #if defined(__aarch64__)
     const int64_t groups = jcp.ngroups;
     const int64_t deformable_groups = jcp.dg;
-    // const std::vector<int>& in_shape{jcp.mb, static_cast<int>(jcp.ic * groups), jcp.ih, jcp.iw};
-    // const std::vector<int>& filter_shape{static_cast<int>(jcp.oc * groups), static_cast<int>(jcp.ic * groups), jcp.kh, jcp.kw};
-    // const std::vector<int>& out_shape{jcp.mb, static_cast<int>(jcp.oc * groups), jcp.oh, jcp.ow};
+    const std::vector<int>& in_shape{jcp.mb, static_cast<int>(jcp.ic * groups), jcp.ih, jcp.iw};
+    const std::vector<int>& filter_shape{static_cast<int>(jcp.oc * groups), static_cast<int>(jcp.ic * groups), jcp.kh, jcp.kw};
+    const std::vector<int>& out_shape{jcp.mb, static_cast<int>(jcp.oc * groups), jcp.oh, jcp.ow};
 
-    const std::vector<int>& in_shape{jcp.mb, static_cast<int>(jcp.ic), jcp.ih, jcp.iw};
-    const std::vector<int>& filter_shape{static_cast<int>(jcp.oc), static_cast<int>(jcp.ic), jcp.kh, jcp.kw};
-    const std::vector<int>& out_shape{jcp.mb, static_cast<int>(jcp.oc), jcp.oh, jcp.ow};
+    // const std::vector<int>& in_shape{jcp.mb, static_cast<int>(jcp.ic), jcp.ih, jcp.iw};
+    // const std::vector<int>& filter_shape{static_cast<int>(jcp.oc), static_cast<int>(jcp.ic), jcp.kh, jcp.kw};
+    // const std::vector<int>& out_shape{jcp.mb, static_cast<int>(jcp.oc), jcp.oh, jcp.ow};
     const std::vector<int>& offset_shape{
         jcp.mb,
         static_cast<int>(deformable_groups * filter_shape[2] * filter_shape[3] * 2),
