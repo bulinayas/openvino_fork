@@ -1579,6 +1579,9 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
     std::cout << "deformable_groups = " << jcp.dg << "\n";
     std::cout << "dilate_h = " << dilation[0] << "\n";
     std::cout << "dilate_w = " << dilation[1] << "\n";
+    std::cout << "p_t = " << pads_begin[0] << "\n";
+    std::cout << "p_l = " << pads_begin[1] << "\n";
+    std::cout << "bilinear_interpolation_pad = " << bilinear_interpolation_pad << "\n";
 
     opt_aarch::deformable_convolution_cpu(src,
                                           offsets,
