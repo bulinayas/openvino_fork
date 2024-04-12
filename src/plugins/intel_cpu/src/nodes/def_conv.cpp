@@ -1562,23 +1562,23 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
 
     const bool bilinear_interpolation_pad = jcp.with_modulation;
 
-    std::cout << "MB = " << jcp.mb << "\n";
-    std::cout << "IC = " << jcp.ic << "\n";
-    std::cout << "IH = " << jcp.ih << "\n";
-    std::cout << "IW = " << jcp.iw << "\n";
-    std::cout << "OC = " << jcp.oc << "\n";
-    std::cout << "OH = " << jcp.oh << "\n";
-    std::cout << "OW = " << jcp.ow << "\n";
-    std::cout << "KH = " << jcp.kh << "\n";
-    std::cout << "KW = " << jcp.kw << "\n";
+    std::cout << "MB = " << in_shape[0] << "\n";
+    std::cout << "IC = " << in_shape[1] << "\n";
+    std::cout << "IH = " << in_shape[2] << "\n";
+    std::cout << "IW = " << in_shape[3] << "\n";
+    std::cout << "OC = " << out_shape[1] << "\n";
+    std::cout << "OH = " << out_shape[2] << "\n";
+    std::cout << "OW = " << out_shape[3] << "\n";
+    std::cout << "KH = " << filter_shape[2] << "\n";
+    std::cout << "KW = " << filter_shape[3] << "\n";
     std::cout << "offset_shape[0] = " << offset_shape[0] << "\n";
     std::cout << "offset_shape[1] = " << offset_shape[1] << "\n";
     std::cout << "offset_shape[2] = " << offset_shape[2] << "\n";
     std::cout << "offset_shape[3] = " << offset_shape[3] << "\n";
     std::cout << "groups = " << jcp.ngroups << "\n";
     std::cout << "deformable_groups = " << jcp.dg << "\n";
-    std::cout << "dilate_h = " << jcp.dilate_h << "\n";
-    std::cout << "dilate_w = " << jcp.dilate_w << "\n";
+    std::cout << "dilate_h = " << dilation[0] << "\n";
+    std::cout << "dilate_w = " << dilation[1] << "\n";
 
     opt_aarch::deformable_convolution_cpu(src,
                                           offsets,
