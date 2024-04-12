@@ -1553,7 +1553,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
         out_shape[3],
     };
 
-    const float* mask = nullptr;
+    // const float* mask = nullptr;
     const std::vector<int> mask_shape = {offset_shape[0], offset_shape[1] / 2, offset_shape[2], offset_shape[3]};
     const std::vector<int>& strides{jcp.stride_h, jcp.stride_w};
     const std::vector<int>& dilation{jcp.dilate_h + 1, jcp.dilate_w + 1};
@@ -1583,7 +1583,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
     opt_aarch::deformable_convolution_cpu(src,
                                           offsets,
                                           weights,
-                                          mask,
+                                          modulation,
                                           dst,
                                           in_shape,
                                           offset_shape,
