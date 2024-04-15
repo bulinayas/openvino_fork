@@ -1324,6 +1324,8 @@ static inline void parallel_nd(int64_t D0,
         });
 }
 
+#pragma GCC push_options
+#pragma GCC optimize ("unroll-loops")
 template <typename T>
 void deformable_convolution_cpu(const T* in,
                                 const T* offsets,
@@ -1545,6 +1547,7 @@ void deformable_convolution_cpu(const T* in,
             compKer(g, mb, oc, oh, ow);
     });
 }
+#pragma GCC pop_options
 
 }  // namespace opt_aarch
 
