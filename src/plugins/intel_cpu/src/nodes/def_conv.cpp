@@ -1146,6 +1146,26 @@ DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(
 
 namespace opt_aarch {
 // #include <omp.h>
+#include "tbb/parallel_for.h"
+#include "tbb/task_arena.h"
+
+inline int dnnl_get_max_threads() {
+    return tbb::this_task_arena::max_concurrency();
+}
+inline int dnnl_in_parallel() {
+    return 0;
+}
+inline int dnnl_get_current_num_threads() {
+    if (dnnl_in_parallel())
+        return 1;
+    return tbb::this_task_arena::max_concurrency();
+}
+
+inline int adjust_num_threads(int nthr, dim_t work_amount) {
+    if (nthr == 0)
+        nthr = dnnl_get_current_num_threads();
+    return (int)std::min((dim_t)nthr, work_amount);
+}
 
 template <typename T>
 inline T nd_iterator_init(T start) {
@@ -1204,10 +1224,8 @@ static inline void for_nd(const int ithr,
     if (work_amount == 0)
         return;
 
-    // int64_t start{0}, end{work_amount};
     int64_t start{0}, end{0};
     balance211(work_amount, nthr, ithr, start, end);
-    // end += start;
 
     int64_t d0{0}, d1{0}, d2{0}, d3{0};
     nd_iterator_init(start, d0, D0, d1, D1, d2, D2, d3, D3);
@@ -1228,10 +1246,9 @@ static inline void for_nd(const int ithr,
     const int64_t work_amount = D0 * D1 * D2 * D3 * D4;
     if (work_amount == 0)
         return;
-    // int64_t start{0}, end{work_amount};
+
     int64_t start{0}, end{0};
     balance211(work_amount, nthr, ithr, start, end);
-    // end += start;
 
     int64_t d0{0}, d1{0}, d2{0}, d3{0}, d4{0};
 
@@ -1243,25 +1260,35 @@ static inline void for_nd(const int ithr,
 }
 
 void parallel(int nthr, const std::function<void(int, int)>& f) {
-    // for (int i = 0; i < nthr; ++i)
-    // {
-    //     f(i, nthr);
+    // if (nthr == 1) {
+    //     f(0, 1);
+    //     return;
     // }
 
+    // #pragma omp parallel num_threads(nthr)
+    //     {
+    //         int nthr = omp_get_num_threads();
+    //         int ithr = omp_get_thread_num();
+
+    //         // int nthr = 1;
+    //         // int ithr = 0;
+    //         f(ithr, nthr);
+    //     }
+
+    nthr = adjust_num_threads(nthr, INT64_MAX);
     // std::cout << "nthr = " << nthr << "\n";
+
     if (nthr == 1) {
         f(0, 1);
         return;
     }
-// #pragma omp parallel num_threads(nthr)
-    {
-        // int nthr = omp_get_num_threads();
-        // int ithr = omp_get_thread_num();
-
-        int nthr = 1;
-        int ithr = 0;
-        f(ithr, nthr);
-    }
+    tbb::parallel_for(
+        0,
+        nthr,
+        [&](int ithr) {
+            f(ithr, nthr);
+        },
+        tbb::static_partitioner());
 }
 
 static inline void parallel_nd(int64_t D0,
@@ -1271,7 +1298,8 @@ static inline void parallel_nd(int64_t D0,
                                const std::function<void(int64_t, int64_t, int64_t, int64_t)>& f) {
     const int64_t work_amount = D0 * D1 * D2 * D3;
     // int nthr = (work_amount == 1 || omp_in_parallel()) ? 1 : omp_get_max_threads();
-    int nthr = 1;
+    int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
+    // int nthr = 1;
 
     if (nthr)
         parallel(nthr, [&](int ithr, int nthr) {
@@ -1287,7 +1315,8 @@ static inline void parallel_nd(int64_t D0,
                                const std::function<void(int64_t, int64_t, int64_t, int64_t, int64_t)>& f) {
     const int64_t work_amount = D0 * D1 * D2 * D3 * D4;
     // int nthr = (work_amount == 1 || omp_in_parallel()) ? 1 : omp_get_max_threads();
-    int nthr = 1;
+    int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
+    // int nthr = 1;
 
     if (nthr)
         parallel(nthr, [&](int ithr, int nthr) {
@@ -1312,8 +1341,7 @@ void deformable_convolution_cpu(const T* in,
                                 const std::vector<std::ptrdiff_t>& pads_end,
                                 const int64_t groups,
                                 const int64_t deformable_groups,
-                                const bool bilinear_interpolation_pad)
-{
+                                const bool bilinear_interpolation_pad) {
     const int MB = in_shape[0];
     const int OH = out_shape[2];
     const int OW = out_shape[3];
@@ -1490,9 +1518,8 @@ void deformable_convolution_cpu(const T* in,
                 (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
 
             int weiIndex = (int)g * group_wei_stride + oc * weiStrides[0] + ic * weiStrides[1];
-            // #pragma unroll
+
             for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
-#pragma GCC unroll 4
                 for (int kw_off = 0; kw_off < KW * weiStrides[3]; kw_off += weiStrides[3]) {
                     // check if current addendum marked as equal zero
                     bool addendum_is_zero = (pSampledCoordsVector[sampledCoordIndex] != -1);
@@ -1684,7 +1711,7 @@ void DeformableConvolution::prepareParams() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, [](const DefConvKey& key) -> std::shared_ptr<DefConvExecutor> {
         // if (key.implType == impl_desc_type::ref) {
-            return std::make_shared<DefConvRefExecutor>(key.defConvAttr, key.descVector);
+        return std::make_shared<DefConvRefExecutor>(key.defConvAttr, key.descVector);
         // }
         // return std::make_shared<DefConvJitExecutor>(key.defConvAttr, key.descVector);
     });
