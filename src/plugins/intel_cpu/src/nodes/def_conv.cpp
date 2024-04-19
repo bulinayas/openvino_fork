@@ -1148,6 +1148,7 @@ namespace opt_aarch {
 // #include <omp.h>
 #include "tbb/parallel_for.h"
 #include "tbb/task_arena.h"
+#include "arm_neon.h"
 
 inline int dnnl_get_max_threads() {
     return tbb::this_task_arena::max_concurrency();
@@ -1526,14 +1527,26 @@ void deformable_convolution_cpu(const T* in,
                     // check if current addendum marked as equal zero
                     bool addendum_is_zero = (pSampledCoordsVector[sampledCoordIndex] != -1);
 
-                    const int v11 = pSampledCoordsVector[sampledCoordIndex];
-                    const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
-                    const int v21 = pSampledCoordsVector[sampledCoordIndex + 2];
-                    const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
-                    T val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
-                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];   // v12
-                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];   // v21
-                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];   // v22
+                    // const int v11 = pSampledCoordsVector[sampledCoordIndex];
+                    // const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
+                    // const int v21 = pSampledCoordsVector[sampledCoordIndex + 2];
+                    // const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
+                    // T val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
+                    // val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];   // v12
+                    // val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];   // v21
+                    // val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];   // v22
+
+                    // d += ((val * filters[weiIndex + kh_off + kw_off]) * addendum_is_zero);
+
+                    const int32x4_t vec = vld1q_s32(pSampledCoordsVector);
+                    // const int v11 = pSampledCoordsVector[sampledCoordIndex];
+                    // const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
+                    // const int v21 = pSampledCoordsVector[sampledCoordIndex + 2];
+                    // const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
+                    T val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec[0]];  // v11
+                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec[1]];   // v12
+                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec[2]];   // v21
+                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec[3]];   // v22
 
                     d += ((val * filters[weiIndex + kh_off + kw_off]) * addendum_is_zero);
                 }
