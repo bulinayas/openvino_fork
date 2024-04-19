@@ -1538,7 +1538,7 @@ void deformable_convolution_cpu(const T* in,
 
                     // d += ((val * filters[weiIndex + kh_off + kw_off]) * addendum_is_zero);
 
-                    const int32x4_t vec = vld1q_s32(pSampledCoordsVector);
+                    const int32x4_t vec = vld1q_s32(pSampledCoordsVector + sampledCoordIndex);
                     // const int v11 = pSampledCoordsVector[sampledCoordIndex];
                     // const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
                     // const int v21 = pSampledCoordsVector[sampledCoordIndex + 2];
