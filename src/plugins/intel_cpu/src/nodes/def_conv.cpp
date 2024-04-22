@@ -1525,7 +1525,6 @@ void deformable_convolution_cpu(const float* in,
             // for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
             //     for (int kw_off = 0; kw_off < ker_four; kw_off += weiStrides[3] + 4) {
             for (int k_off = 0; k_off < (ker_size / 4) * 4; k_off += 4) {
-                std::cout << "HIIIIIIIIIIIIIIIIIIIIIIIIIII\n";
                 // check if current addendum marked as equal zero
                 // bool addendum_is_zero = (pSampledCoordsVector[sampledCoordIndex] != -1);
 
@@ -1574,13 +1573,13 @@ void deformable_convolution_cpu(const float* in,
                 // const float32x4_t vec_weights = vld1q_f32(filters + (weiIndex + kh_off + kw_off));
                 const float32x4_t vec_weights = vld1q_f32(filters + (weiIndex + k_off));
                 res = vmlaq_f32(res, val, vec_weights);
-                std::cout << "res[0] = " << res[0] << "\n";
+
                 d += res[0] + res[1] + res[2] + res[3];
             }
 
             // for (int kw_off = (KW * weiStrides[3] - ker_four); kw_off < (KW * weiStrides[3]);
             //      kw_off += weiStrides[3]) {
-            for (int kw_off = ker_size - (ker_size % 4); kw_off < ker_size; kw_off += 1) {
+            for (uint8_t l = 0; l < ker_size % 4; l++) {
                 const int v11 = pSampledCoordsVector[sampledCoordIndex];
                 const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
                 const int v21 = pSampledCoordsVector[sampledCoordIndex + 2];
@@ -1592,7 +1591,8 @@ void deformable_convolution_cpu(const float* in,
                 val *= (pSampledCoordsVector[sampledCoordIndex] != -1);
 
                 // d += (val * filters[weiIndex + kh_off + kw_off]);
-                d += (val * filters[weiIndex + kw_off]);
+                // d += (val * filters[weiIndex + kw_off]);
+                d += (val * filters[weiIndex + ker_size - ker_size % 4 + l]);
             }
             // }
         }
