@@ -1548,7 +1548,7 @@ void deformable_convolution_cpu(const T* in,
                     const int32x4_t vec1 = vld1q_s32(pSampledCoordsVector + sampledCoordIndex);
                     const int32x4_t vec2 = vld1q_s32(pSampledCoordsVector + sampledCoordIndex + 4);
                     const int32x4_t vec3 = vld1q_s32(pSampledCoordsVector + sampledCoordIndex + 8);
-                    const int32x4_t vec4 = vld1q_s32(pSampledCoordsVector + sampledCoordIndex + 16);
+                    const int32x4_t vec4 = vld1q_s32(pSampledCoordsVector + sampledCoordIndex + 12);
 
                     float32x4_t val = vdupq_n_f32(0);
                     val[0] = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[0]];  // v11
