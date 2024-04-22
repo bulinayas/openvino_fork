@@ -1524,7 +1524,7 @@ void deformable_convolution_cpu(const float* in,
 
             // for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
             //     for (int kw_off = 0; kw_off < ker_four; kw_off += weiStrides[3] + 4) {
-            for (int k_off = 0; k_off < (ker_size / 4) * 4; k_off += 4) {
+            for (int k_off = 0; k_off < (ker_size / 4); k_off += 1) {
                 // check if current addendum marked as equal zero
                 // bool addendum_is_zero = (pSampledCoordsVector[sampledCoordIndex] != -1);
 
@@ -1571,7 +1571,7 @@ void deformable_convolution_cpu(const float* in,
 
                 // d += (val * filters[weiIndex + kh_off + kw_off] * addendum_is_zero);
                 // const float32x4_t vec_weights = vld1q_f32(filters + (weiIndex + kh_off + kw_off));
-                const float32x4_t vec_weights = vld1q_f32(filters + (weiIndex + k_off));
+                const float32x4_t vec_weights = vld1q_f32(filters + (weiIndex + 4 * k_off));
                 res = vmlaq_f32(res, val, vec_weights);
 
                 d += res[0] + res[1] + res[2] + res[3];
