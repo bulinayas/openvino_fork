@@ -1327,12 +1327,12 @@ static inline void parallel_nd(int64_t D0,
 
 #pragma GCC push_options
 #pragma GCC optimize("unroll-loops")
-template <typename T>
-void deformable_convolution_cpu(const T* in,
-                                const T* offsets,
-                                const T* filters,
-                                const T* mask,
-                                T* out,
+// template <typename T>
+void deformable_convolution_cpu(const float* in,
+                                const float* offsets,
+                                const float* filters,
+                                const float* mask,
+                                float* out,
                                 const std::vector<int>& in_shape,
                                 const std::vector<int>& offset_shape,
                                 const std::vector<int>& filter_shape,
@@ -1377,7 +1377,7 @@ void deformable_convolution_cpu(const T* in,
     constexpr static int sampledPointsPerPixel = 4;
 
     std::vector<int> sampledCoordsVector((MB * DG * KH * KW * OH * OW * sampledPointsPerPixel));
-    std::vector<T> interpWeightsVector((MB * DG * KH * KW * OH * OW * sampledPointsPerPixel));
+    std::vector<float> interpWeightsVector((MB * DG * KH * KW * OH * OW * sampledPointsPerPixel));
 
     std::vector<long int> srcStrides =
         std::vector<long int>(in_shape.size()) = {static_cast<long int>(in_shape[1] * in_shape[2] * in_shape[3]),
@@ -1410,7 +1410,7 @@ void deformable_convolution_cpu(const T* in,
             static_cast<long int>(1)};
 
     int* pSampledCoordsVector = sampledCoordsVector.data();
-    T* pInterpWeightsVector = interpWeightsVector.data();
+    float* pInterpWeightsVector = interpWeightsVector.data();
 
     auto precompKer = [&](int mb, int dg, int oh, int ow) {
         int sampledCoordIndex = (mb * DG * OH * OW + dg * OH * OW + oh * OW + ow) * KH * KW * sampledPointsPerPixel;
@@ -1422,7 +1422,7 @@ void deformable_convolution_cpu(const T* in,
 
         const float* data_offset_ptr =
             static_cast<const float*>(offsets + mb * offStrides[0] + (dg * 2 * KH * KW) * offStrides[1]);
-        const T* modulation_offset_ptr = nullptr;
+        const float* modulation_offset_ptr = nullptr;
         if (withModulation) {
             modulation_offset_ptr = mask + mb * modStrides[0] + (dg * ker_size) * modStrides[1];
         }
@@ -1433,8 +1433,8 @@ void deformable_convolution_cpu(const T* in,
                     2 * ((int)kh * KW + kw) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
                 const int data_offset_w_index =
                     (2 * ((int)kh * KW + kw) + 1) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
-                const T offset_h = data_offset_ptr[data_offset_h_index];
-                const T offset_w = data_offset_ptr[data_offset_w_index];
+                const float offset_h = data_offset_ptr[data_offset_h_index];
+                const float offset_w = data_offset_ptr[data_offset_w_index];
 
                 // const float32x4_t offset_h = vld1q_f32(data_offset_ptr + data_offset_h_index);
                 // const float32x4_t offset_w = vld1q_f32(data_offset_ptr + data_offset_w_index);
@@ -1451,7 +1451,7 @@ void deformable_convolution_cpu(const T* in,
                 }
                 if (!skip_compute) {
                     // modulations precomp.
-                    T modulation_scalar = 1.0f;
+                    float modulation_scalar = 1.0f;
                     if (modulation_offset_ptr != nullptr) {
                         int modulation_index = (kh * KW + kw) * modStrides[1] + oh * modStrides[2] + ow * modStrides[3];
                         modulation_scalar = modulation_offset_ptr[modulation_index];
@@ -1490,7 +1490,7 @@ void deformable_convolution_cpu(const T* in,
                     pSampledCoordsVector[sampledCoordIndex + 2] = h_off_low + w_off_high;
                     pSampledCoordsVector[sampledCoordIndex + 3] = h_off_low + w_off_low;
 
-                    T w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
+                    float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
                       w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
 
                     pInterpWeightsVector[sampledCoordIndex] = w11;
@@ -1522,7 +1522,7 @@ void deformable_convolution_cpu(const T* in,
         float32x4_t res = vdupq_n_f32(0);
         // T d = 0;
         for (int ic = 0; ic < IC; ic++) {
-            const T* data_im_ptr = in + mb * srcStrides[0] + (g * IC + ic) * srcStrides[1];
+            const float* data_im_ptr = in + mb * srcStrides[0] + (g * IC + ic) * srcStrides[1];
             const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
             int sampledCoordIndex =
                 (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
