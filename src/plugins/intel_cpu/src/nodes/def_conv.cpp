@@ -1484,7 +1484,7 @@ void deformable_convolution_cpu(const float* in,
                     pSampledCoordsVector[sampledCoordIndex + 3] = h_off_low + w_off_low;
 
                     float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
-                      w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
+                          w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
 
                     pInterpWeightsVector[sampledCoordIndex] = w11;
                     pInterpWeightsVector[sampledCoordIndex + 1] = w12;
@@ -1546,34 +1546,49 @@ void deformable_convolution_cpu(const float* in,
 
                     float32x4_t val = vdupq_n_f32(0);
                     val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[0]];  // v11
-                    val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[1]];       // v12
-                    val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[2]];       // v21
-                    val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[3]];       // v22
+                    val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[1]];  // v12
+                    val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[2]];  // v21
+                    val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[3]];  // v22
                     val[0] *= (pSampledCoordsVector[sampledCoordIndex] != -1);
 
                     val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[0]];  // v11
-                    val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[1]];       // v12
-                    val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[2]];       // v21
-                    val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[3]];       // v22
+                    val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[1]];  // v12
+                    val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[2]];  // v21
+                    val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[3]];  // v22
                     val[1] *= (pSampledCoordsVector[sampledCoordIndex] != -1);
 
                     val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[0]];  // v11
-                    val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[1]];       // v12
-                    val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[2]];       // v21
-                    val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[3]];       // v22
+                    val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[1]];  // v12
+                    val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[2]];  // v21
+                    val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[3]];  // v22
                     val[2] *= (pSampledCoordsVector[sampledCoordIndex] != -1);
 
                     val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[0]];  // v11
-                    val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[1]];       // v12
-                    val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[2]];       // v21
-                    val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[3]];       // v22
+                    val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[1]];  // v12
+                    val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[2]];  // v21
+                    val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[3]];  // v22
                     val[3] *= (pSampledCoordsVector[sampledCoordIndex] != -1);
 
                     // d += (val * filters[weiIndex + kh_off + kw_off] * addendum_is_zero);
                     const float32x4_t vec_weights = vld1q_f32(filters + (weiIndex + kh_off + kw_off));
-                    res  = vmlaq_f32(res, val, vec_weights);
+                    res = vmlaq_f32(res, val, vec_weights);
                     std::cout << "res[0] = " << res[0] << "\n";
                     d += res[0] + res[1] + res[2] + res[3];
+                }
+
+                for (int kw_off = (KW * weiStrides[3] - ker_four * 4); kw_off < (KW * weiStrides[3]);
+                     kw_off += weiStrides[3]) {
+                    const int v11 = pSampledCoordsVector[sampledCoordIndex];
+                    const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
+                    const int v21 = pSampledCoordsVector[sampledCoordIndex + 2];
+                    const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
+                    float val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
+                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];       // v12
+                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];       // v21
+                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];       // v22
+                    val *= (pSampledCoordsVector[sampledCoordIndex] != -1);
+
+                    d += (val * filters[weiIndex + kh_off + kw_off]);
                 }
             }
         }
