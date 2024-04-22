@@ -1521,7 +1521,7 @@ void deformable_convolution_cpu(const float* in,
                 (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
 
             int weiIndex = (int)g * group_wei_stride + oc * weiStrides[0] + ic * weiStrides[1];
-            int ker_four = KW * weiStrides[3] / 4;
+            int ker_four = (KW * weiStrides[3] / 4) * 4;
 
             for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
                 for (int kw_off = 0; kw_off < ker_four; kw_off += weiStrides[3] + 4) {
@@ -1576,7 +1576,7 @@ void deformable_convolution_cpu(const float* in,
                     d += res[0] + res[1] + res[2] + res[3];
                 }
 
-                for (int kw_off = (KW * weiStrides[3] - ker_four * 4); kw_off < (KW * weiStrides[3]);
+                for (int kw_off = (KW * weiStrides[3] - ker_four); kw_off < (KW * weiStrides[3]);
                      kw_off += weiStrides[3]) {
                     const int v11 = pSampledCoordsVector[sampledCoordIndex];
                     const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
