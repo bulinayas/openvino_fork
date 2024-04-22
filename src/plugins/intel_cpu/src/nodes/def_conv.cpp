@@ -1345,7 +1345,6 @@ void deformable_convolution_cpu(const float* in,
                                 const int64_t groups,
                                 const int64_t deformable_groups,
                                 const bool bilinear_interpolation_pad) {
-    const float* weights = static_cast<const float*>(filters);
     const int MB = in_shape[0];
     const int OH = out_shape[2];
     const int OW = out_shape[3];
@@ -1417,9 +1416,6 @@ void deformable_convolution_cpu(const float* in,
         const int h_in = oh * KSH - padT;
         const int w_in = ow * KSW - padL;
 
-        const int waOffsetH = 0;
-        const int waOffsetW = 0;
-
         const float* data_offset_ptr =
             static_cast<const float*>(offsets + mb * offStrides[0] + (dg * 2 * KH * KW) * offStrides[1]);
         const float* modulation_offset_ptr = nullptr;
@@ -1435,9 +1431,6 @@ void deformable_convolution_cpu(const float* in,
                     (2 * ((int)kh * KW + kw) + 1) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
                 const float offset_h = data_offset_ptr[data_offset_h_index];
                 const float offset_w = data_offset_ptr[data_offset_w_index];
-
-                // const float32x4_t offset_h = vld1q_f32(data_offset_ptr + data_offset_h_index);
-                // const float32x4_t offset_w = vld1q_f32(data_offset_ptr + data_offset_w_index);
 
                 float map_h = h_in + kh * (KDH + 1) + offset_h;
                 float map_w = w_in + kw * (KDW + 1) + offset_w;
@@ -1471,10 +1464,10 @@ void deformable_convolution_cpu(const float* in,
                     float lw = map_w - w_low;
                     float hh = 1 - lh, hw = 1 - lw;
 
-                    int h_ind_low = std::max(h_low, 0) - waOffsetH;
-                    int h_ind_high = std::min(h_high, cur_h_end - 1) - waOffsetH;
-                    int w_ind_low = std::max(w_low, 0) - waOffsetW;
-                    int w_ind_high = std::min(w_high, cur_w_end - 1) - waOffsetW;
+                    int h_ind_low = std::max(h_low, 0);
+                    int h_ind_high = std::min(h_high, cur_h_end - 1);
+                    int w_ind_low = std::max(w_low, 0);
+                    int w_ind_high = std::min(w_high, cur_w_end - 1);
 
                     hh = (h_low >= 0 ? hh : 0);
                     hw = (w_low >= 0 ? hw : 0);
@@ -1551,32 +1544,32 @@ void deformable_convolution_cpu(const float* in,
                     const int32x4_t vec4 = vld1q_s32(pSampledCoordsVector + sampledCoordIndex + 12);
 
                     float32x4_t val = vdupq_n_f32(0);
-                    val[0] = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[0]];  // v11
+                    val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[0]];  // v11
                     val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[1]];       // v12
                     val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[2]];       // v21
                     val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[3]];       // v22
                     val[0] *= (pSampledCoordsVector[sampledCoordIndex] != -1);
 
-                    val[1] = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[0]];  // v11
+                    val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[0]];  // v11
                     val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[1]];       // v12
                     val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[2]];       // v21
                     val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[3]];       // v22
                     val[1] *= (pSampledCoordsVector[sampledCoordIndex] != -1);
 
-                    val[2] = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[0]];  // v11
+                    val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[0]];  // v11
                     val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[1]];       // v12
                     val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[2]];       // v21
                     val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[3]];       // v22
                     val[2] *= (pSampledCoordsVector[sampledCoordIndex] != -1);
 
-                    val[3] = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[0]];  // v11
+                    val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[0]];  // v11
                     val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[1]];       // v12
                     val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[2]];       // v21
                     val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[3]];       // v22
                     val[3] *= (pSampledCoordsVector[sampledCoordIndex] != -1);
 
                     // d += (val * filters[weiIndex + kh_off + kw_off] * addendum_is_zero);
-                    const float32x4_t vec_weights = vld1q_f32(weights + (weiIndex + kh_off + kw_off));
+                    const float32x4_t vec_weights = vld1q_f32(filters + (weiIndex + kh_off + kw_off));
                     res  = vmlaq_f32(res, val, vec_weights);
                     d += res[0] + res[1] + res[2] + res[3];
                 }
