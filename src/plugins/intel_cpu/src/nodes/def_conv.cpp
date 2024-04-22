@@ -1146,9 +1146,9 @@ DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(
 
 namespace opt_aarch {
 // #include <omp.h>
+#include "arm_neon.h"
 #include "tbb/parallel_for.h"
 #include "tbb/task_arena.h"
-#include "arm_neon.h"
 
 inline int dnnl_get_max_threads() {
     return tbb::this_task_arena::max_concurrency();
@@ -1326,7 +1326,7 @@ static inline void parallel_nd(int64_t D0,
 }
 
 #pragma GCC push_options
-#pragma GCC optimize ("unroll-loops")
+#pragma GCC optimize("unroll-loops")
 template <typename T>
 void deformable_convolution_cpu(const T* in,
                                 const T* offsets,
@@ -1408,8 +1408,6 @@ void deformable_convolution_cpu(const T* in,
             static_cast<long int>(mask_shape[3]),
             static_cast<long int>(1)};
 
-    bool enforceRef = true;
-
     int* pSampledCoordsVector = sampledCoordsVector.data();
     T* pInterpWeightsVector = interpWeightsVector.data();
 
@@ -1418,10 +1416,11 @@ void deformable_convolution_cpu(const T* in,
         const int h_in = oh * KSH - padT;
         const int w_in = ow * KSW - padL;
 
-        const int waOffsetH = (enforceRef ? 0 : h_in);
-        const int waOffsetW = (enforceRef ? 0 : w_in);
+        const int waOffsetH = 0;
+        const int waOffsetW = 0;
 
-        const T* data_offset_ptr = offsets + mb * offStrides[0] + (dg * 2 * KH * KW) * offStrides[1];
+        const float* data_offset_ptr =
+            static_cast<const float*>(offsets + mb * offStrides[0] + (dg * 2 * KH * KW) * offStrides[1]);
         const T* modulation_offset_ptr = nullptr;
         if (withModulation) {
             modulation_offset_ptr = mask + mb * modStrides[0] + (dg * ker_size) * modStrides[1];
@@ -1435,6 +1434,10 @@ void deformable_convolution_cpu(const T* in,
                     (2 * ((int)kh * KW + kw) + 1) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
                 const T offset_h = data_offset_ptr[data_offset_h_index];
                 const T offset_w = data_offset_ptr[data_offset_w_index];
+
+                // const float32x4_t offset_h = vld1q_f32(data_offset_ptr + data_offset_h_index);
+                // const float32x4_t offset_w = vld1q_f32(data_offset_ptr + data_offset_w_index);
+
                 float map_h = h_in + kh * (KDH + 1) + offset_h;
                 float map_w = w_in + kw * (KDW + 1) + offset_w;
                 bool skip_compute;
@@ -1495,6 +1498,7 @@ void deformable_convolution_cpu(const T* in,
                     pInterpWeightsVector[sampledCoordIndex + 3] = w22;
                 } else {
                     pSampledCoordsVector[sampledCoordIndex] = 0;
+
                     pInterpWeightsVector[sampledCoordIndex] = 0;
                     pInterpWeightsVector[sampledCoordIndex + 1] = 0;
                     pInterpWeightsVector[sampledCoordIndex + 2] = 0;
@@ -1513,6 +1517,7 @@ void deformable_convolution_cpu(const T* in,
     const int group_wei_stride = weiStrides[0] * OC;
 
     auto compKer = [=](int g, int mb, int oc, int oh, int ow) {
+        // float32x4_t d = vdupq_n_f32(0);
         T d = 0;
         for (int ic = 0; ic < IC; ic++) {
             const T* data_im_ptr = in + mb * srcStrides[0] + (g * IC + ic) * srcStrides[1];
@@ -1539,16 +1544,13 @@ void deformable_convolution_cpu(const T* in,
                     // d += ((val * filters[weiIndex + kh_off + kw_off]) * addendum_is_zero);
 
                     const int32x4_t vec = vld1q_s32(pSampledCoordsVector + sampledCoordIndex);
-                    // const int v11 = pSampledCoordsVector[sampledCoordIndex];
-                    // const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
-                    // const int v21 = pSampledCoordsVector[sampledCoordIndex + 2];
-                    // const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
-                    T val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec[0]];  // v11
-                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec[1]];   // v12
-                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec[2]];   // v21
-                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec[3]];   // v22
 
-                    d += ((val * filters[weiIndex + kh_off + kw_off]) * addendum_is_zero);
+                    float val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec[0]];  // v11
+                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec[1]];       // v12
+                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec[2]];       // v21
+                    val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec[3]];       // v22
+
+                    d += (val * filters[weiIndex + kh_off + kw_off] * addendum_is_zero);
                 }
             }
         }
