@@ -1522,6 +1522,7 @@ void deformable_convolution_cpu(const float* in,
 
             int weiIndex = (int)g * group_wei_stride + oc * weiStrides[0] + ic * weiStrides[1];
             int ker_four = (KW * weiStrides[3] / 4) * 4;
+            std::cout << "ker_four = " << ker_four << "\n";
 
             for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
                 for (int kw_off = 0; kw_off < ker_four; kw_off += weiStrides[3] + 4) {
