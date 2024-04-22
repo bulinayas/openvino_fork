@@ -1529,7 +1529,7 @@ void deformable_convolution_cpu(const T* in,
 
             int weiIndex = (int)g * group_wei_stride + oc * weiStrides[0] + ic * weiStrides[1];
 
-            for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2] + 4) {
+            for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
                 for (int kw_off = 0; kw_off < KW * weiStrides[3]; kw_off += weiStrides[3] + 4) {
                     // check if current addendum marked as equal zero
                     // bool addendum_is_zero = (pSampledCoordsVector[sampledCoordIndex] != -1);
