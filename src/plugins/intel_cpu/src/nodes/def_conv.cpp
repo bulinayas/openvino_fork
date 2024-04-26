@@ -1299,8 +1299,8 @@ static inline void parallel_nd(int64_t D0,
                                const std::function<void(int64_t, int64_t, int64_t, int64_t)>& f) {
     const int64_t work_amount = D0 * D1 * D2 * D3;
     // int nthr = (work_amount == 1 || omp_in_parallel()) ? 1 : omp_get_max_threads();
-    // int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
-    int nthr = 1;
+    int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
+    // int nthr = 1;
 
     if (nthr)
         parallel(nthr, [&](int ithr, int nthr) {
@@ -1316,8 +1316,8 @@ static inline void parallel_nd(int64_t D0,
                                const std::function<void(int64_t, int64_t, int64_t, int64_t, int64_t)>& f) {
     const int64_t work_amount = D0 * D1 * D2 * D3 * D4;
     // int nthr = (work_amount == 1 || omp_in_parallel()) ? 1 : omp_get_max_threads();
-    // int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
-    int nthr = 1;
+    int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
+    // int nthr = 1;
 
     if (nthr)
         parallel(nthr, [&](int ithr, int nthr) {
@@ -1512,7 +1512,7 @@ void deformable_convolution_cpu(const float* in,
 
     auto compKer = [=](int g, int mb, int oc, int oh, int ow) {
         float32_t d = 0;
-        float32x4_t res = vdupq_n_f32(0);
+        // float32x4_t res = vdupq_n_f32(0);
         // T d = 0;
         for (int ic = 0; ic < IC; ic++) {
             const float* data_im_ptr = in + mb * srcStrides[0] + (g * IC + ic) * srcStrides[1];
