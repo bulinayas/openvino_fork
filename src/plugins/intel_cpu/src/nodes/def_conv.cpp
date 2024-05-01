@@ -1478,18 +1478,18 @@ void deformable_convolution_cpu(const float* in,
                 const int h_off_high = h_ind_high * (srcStrides[2] / srcStrides[3]);
                 const int w_off_low = w_ind_low;
                 const int w_off_high = w_ind_high;
-                pSampledCoordsVector[sampledCoordIndex] = skip_compute * (h_off_high + w_off_high);
-                pSampledCoordsVector[sampledCoordIndex + skip_compute * 1] = skip_compute * (h_off_high + w_off_low);
-                pSampledCoordsVector[sampledCoordIndex + skip_compute * 2] = skip_compute * (h_off_low + w_off_high);
-                pSampledCoordsVector[sampledCoordIndex + skip_compute * 3] = skip_compute * (h_off_low + w_off_low);
+                pSampledCoordsVector[sampledCoordIndex] = !skip_compute * (h_off_high + w_off_high);
+                pSampledCoordsVector[sampledCoordIndex + !skip_compute * 1] = !skip_compute * (h_off_high + w_off_low);
+                pSampledCoordsVector[sampledCoordIndex + !skip_compute * 2] = !skip_compute * (h_off_low + w_off_high);
+                pSampledCoordsVector[sampledCoordIndex + !skip_compute * 3] = !skip_compute * (h_off_low + w_off_low);
 
                 float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
                       w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
 
-                pInterpWeightsVector[sampledCoordIndex] = skip_compute * w11;
-                pInterpWeightsVector[sampledCoordIndex + 1] = skip_compute * w12;
-                pInterpWeightsVector[sampledCoordIndex + 2] = skip_compute * w21;
-                pInterpWeightsVector[sampledCoordIndex + 3] = skip_compute * w22;
+                pInterpWeightsVector[sampledCoordIndex] = !skip_compute * w11;
+                pInterpWeightsVector[sampledCoordIndex + 1] = !skip_compute * w12;
+                pInterpWeightsVector[sampledCoordIndex + 2] = !skip_compute * w21;
+                pInterpWeightsVector[sampledCoordIndex + 3] = !skip_compute * w22;
                 // } else {
                 //     pSampledCoordsVector[sampledCoordIndex] = 0;
 
