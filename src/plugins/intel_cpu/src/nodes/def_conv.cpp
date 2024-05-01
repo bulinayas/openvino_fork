@@ -1442,62 +1442,62 @@ void deformable_convolution_cpu(const float* in,
                 } else {
                     skip_compute = !(map_w >= 0.f && map_w < IW && map_h >= 0.f && map_h < IH);
                 }
-                if (!skip_compute) {
-                    // modulations precomp.
-                    float modulation_scalar = 1.0f;
-                    if (modulation_offset_ptr != nullptr) {
-                        int modulation_index = (kh * KW + kw) * modStrides[1] + oh * modStrides[2] + ow * modStrides[3];
-                        modulation_scalar = modulation_offset_ptr[modulation_index];
-                    }
-
-                    // interpolation precomp.
-                    const int cur_h_end = IH;
-                    const int cur_w_end = IW;
-                    int h_low =
-                        with_bi_pad ? static_cast<int>(floorf(map_h)) : std::max(static_cast<int>(floorf(map_h)), 0);
-                    int w_low =
-                        with_bi_pad ? static_cast<int>(floorf(map_w)) : std::max(static_cast<int>(floorf(map_w)), 0);
-                    int h_high = with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_h_end - 1);
-                    int w_high = with_bi_pad ? w_low + 1 : std::min(static_cast<int>(ceilf(map_w)), cur_w_end - 1);
-
-                    float lh = map_h - h_low;
-                    float lw = map_w - w_low;
-                    float hh = 1 - lh, hw = 1 - lw;
-
-                    int h_ind_low = std::max(h_low, 0);
-                    int h_ind_high = std::min(h_high, cur_h_end - 1);
-                    int w_ind_low = std::max(w_low, 0);
-                    int w_ind_high = std::min(w_high, cur_w_end - 1);
-
-                    hh = (h_low >= 0 ? hh : 0);
-                    hw = (w_low >= 0 ? hw : 0);
-                    lh = (h_high < cur_h_end ? lh : 0);
-                    lw = (w_high < cur_w_end ? lw : 0);
-
-                    const int h_off_low = h_ind_low * (srcStrides[2] / srcStrides[3]);
-                    const int h_off_high = h_ind_high * (srcStrides[2] / srcStrides[3]);
-                    const int w_off_low = w_ind_low;
-                    const int w_off_high = w_ind_high;
-                    pSampledCoordsVector[sampledCoordIndex] = h_off_high + w_off_high;
-                    pSampledCoordsVector[sampledCoordIndex + 1] = h_off_high + w_off_low;
-                    pSampledCoordsVector[sampledCoordIndex + 2] = h_off_low + w_off_high;
-                    pSampledCoordsVector[sampledCoordIndex + 3] = h_off_low + w_off_low;
-
-                    float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
-                          w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
-
-                    pInterpWeightsVector[sampledCoordIndex] = w11;
-                    pInterpWeightsVector[sampledCoordIndex + 1] = w12;
-                    pInterpWeightsVector[sampledCoordIndex + 2] = w21;
-                    pInterpWeightsVector[sampledCoordIndex + 3] = w22;
-                } else {
-                    pSampledCoordsVector[sampledCoordIndex] = 0;
-
-                    pInterpWeightsVector[sampledCoordIndex] = 0;
-                    pInterpWeightsVector[sampledCoordIndex + 1] = 0;
-                    pInterpWeightsVector[sampledCoordIndex + 2] = 0;
-                    pInterpWeightsVector[sampledCoordIndex + 3] = 0;
+                // if (!skip_compute) {
+                // modulations precomp.
+                float modulation_scalar = 1.0f;
+                if (modulation_offset_ptr != nullptr) {
+                    int modulation_index = (kh * KW + kw) * modStrides[1] + oh * modStrides[2] + ow * modStrides[3];
+                    modulation_scalar = modulation_offset_ptr[modulation_index];
                 }
+
+                // interpolation precomp.
+                const int cur_h_end = IH;
+                const int cur_w_end = IW;
+                int h_low =
+                    with_bi_pad ? static_cast<int>(floorf(map_h)) : std::max(static_cast<int>(floorf(map_h)), 0);
+                int w_low =
+                    with_bi_pad ? static_cast<int>(floorf(map_w)) : std::max(static_cast<int>(floorf(map_w)), 0);
+                int h_high = with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_h_end - 1);
+                int w_high = with_bi_pad ? w_low + 1 : std::min(static_cast<int>(ceilf(map_w)), cur_w_end - 1);
+
+                float lh = map_h - h_low;
+                float lw = map_w - w_low;
+                float hh = 1 - lh, hw = 1 - lw;
+
+                int h_ind_low = std::max(h_low, 0);
+                int h_ind_high = std::min(h_high, cur_h_end - 1);
+                int w_ind_low = std::max(w_low, 0);
+                int w_ind_high = std::min(w_high, cur_w_end - 1);
+
+                hh = (h_low >= 0 ? hh : 0);
+                hw = (w_low >= 0 ? hw : 0);
+                lh = (h_high < cur_h_end ? lh : 0);
+                lw = (w_high < cur_w_end ? lw : 0);
+
+                const int h_off_low = h_ind_low * (srcStrides[2] / srcStrides[3]);
+                const int h_off_high = h_ind_high * (srcStrides[2] / srcStrides[3]);
+                const int w_off_low = w_ind_low;
+                const int w_off_high = w_ind_high;
+                pSampledCoordsVector[sampledCoordIndex] = skip_compute * (h_off_high + w_off_high);
+                pSampledCoordsVector[sampledCoordIndex + skip_compute * 1] = skip_compute * (h_off_high + w_off_low);
+                pSampledCoordsVector[sampledCoordIndex + skip_compute * 2] = skip_compute * (h_off_low + w_off_high);
+                pSampledCoordsVector[sampledCoordIndex + skip_compute * 3] = skip_compute * (h_off_low + w_off_low);
+
+                float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
+                      w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
+
+                pInterpWeightsVector[sampledCoordIndex] = skip_compute * w11;
+                pInterpWeightsVector[sampledCoordIndex + 1] = skip_compute * w12;
+                pInterpWeightsVector[sampledCoordIndex + 2] = skip_compute * w21;
+                pInterpWeightsVector[sampledCoordIndex + 3] = skip_compute * w22;
+                // } else {
+                //     pSampledCoordsVector[sampledCoordIndex] = 0;
+
+                //     pInterpWeightsVector[sampledCoordIndex] = 0;
+                //     pInterpWeightsVector[sampledCoordIndex + 1] = 0;
+                //     pInterpWeightsVector[sampledCoordIndex + 2] = 0;
+                //     pInterpWeightsVector[sampledCoordIndex + 3] = 0;
+                // }
                 sampledCoordIndex += sampledPointsPerPixel;
             }
         }
