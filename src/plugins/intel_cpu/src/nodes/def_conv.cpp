@@ -1299,8 +1299,8 @@ static inline void parallel_nd(int64_t D0,
                                const std::function<void(int64_t, int64_t, int64_t, int64_t)>& f) {
     const int64_t work_amount = D0 * D1 * D2 * D3;
     // int nthr = (work_amount == 1 || omp_in_parallel()) ? 1 : omp_get_max_threads();
-    int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
-    // int nthr = 1;
+    // int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
+    int nthr = 1;
 
     if (nthr)
         parallel(nthr, [&](int ithr, int nthr) {
@@ -1316,8 +1316,8 @@ static inline void parallel_nd(int64_t D0,
                                const std::function<void(int64_t, int64_t, int64_t, int64_t, int64_t)>& f) {
     const int64_t work_amount = D0 * D1 * D2 * D3 * D4;
     // int nthr = (work_amount == 1 || omp_in_parallel()) ? 1 : omp_get_max_threads();
-    int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
-    // int nthr = 1;
+    // int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
+    int nthr = 1;
 
     if (nthr)
         parallel(nthr, [&](int ithr, int nthr) {
@@ -1325,14 +1325,13 @@ static inline void parallel_nd(int64_t D0,
         });
 }
 
-#pragma GCC push_options
-#pragma GCC optimize("unroll-loops")
-// template <typename T>
-void deformable_convolution_cpu(const float* in,
-                                const float* offsets,
-                                const float* filters,
-                                const float* mask,
-                                float* out,
+
+template <typename T>
+void deformable_convolution_cpu(const T* in,
+                                const T* offsets,
+                                const T* filters,
+                                const T* mask,
+                                T* out,
                                 const std::vector<int>& in_shape,
                                 const std::vector<int>& offset_shape,
                                 const std::vector<int>& filter_shape,
@@ -1376,239 +1375,176 @@ void deformable_convolution_cpu(const float* in,
     constexpr static int sampledPointsPerPixel = 4;
 
     std::vector<int> sampledCoordsVector((MB * DG * KH * KW * OH * OW * sampledPointsPerPixel));
-    std::vector<float> interpWeightsVector((MB * DG * KH * KW * OH * OW * sampledPointsPerPixel));
+    std::vector<T> interpWeightsVector((MB * DG * KH * KW * OH * OW * sampledPointsPerPixel));
 
-    std::vector<long int> srcStrides =
-        std::vector<long int>(in_shape.size()) = {static_cast<long int>(in_shape[1] * in_shape[2] * in_shape[3]),
-                                                  static_cast<long int>(in_shape[2] * in_shape[3]),
-                                                  static_cast<long int>(in_shape[3]),
-                                                  static_cast<long int>(1)};
-    std::vector<long int> offStrides = std::vector<long int>(offset_shape.size()) = {
-        static_cast<long int>(offset_shape[1] * offset_shape[2] * offset_shape[3]),
-        static_cast<long int>(offset_shape[2] * offset_shape[3]),
-        static_cast<long int>(offset_shape[3]),
-        static_cast<long int>(1)};
-    std::vector<long int> weiStrides = std::vector<long int>(filter_shape.size()) = {
-        static_cast<long int>(filter_shape[1] * filter_shape[2] * filter_shape[3]),
-        static_cast<long int>(filter_shape[2] * filter_shape[3]),
-        static_cast<long int>(filter_shape[3]),
-        static_cast<long int>(1)};
-    std::vector<long int> dstStrides =
-        std::vector<long int>(out_shape.size()) = {static_cast<long int>(out_shape[1] * out_shape[2] * out_shape[3]),
-                                                   static_cast<long int>(out_shape[2] * out_shape[3]),
-                                                   static_cast<long int>(out_shape[3]),
-                                                   static_cast<long int>(1)};
+    std::vector<long int> srcStrides = std::vector<long int>(in_shape.size()) = {static_cast<long int>(in_shape[1] * in_shape[2] * in_shape[3]), static_cast<long int>(in_shape[2] * in_shape[3]), static_cast<long int>(in_shape[3]), static_cast<long int>(1)};
+    std::vector<long int> offStrides = std::vector<long int>(offset_shape.size()) = {static_cast<long int>(offset_shape[1] * offset_shape[2] * offset_shape[3]), static_cast<long int>(offset_shape[2] * offset_shape[3]), static_cast<long int>(offset_shape[3]), static_cast<long int>(1)};
+    std::vector<long int> weiStrides = std::vector<long int>(filter_shape.size()) = {static_cast<long int>(filter_shape[1] * filter_shape[2] * filter_shape[3]), static_cast<long int>(filter_shape[2] * filter_shape[3]), static_cast<long int>(filter_shape[3]), static_cast<long int>(1)};
+    std::vector<long int> dstStrides = std::vector<long int>(out_shape.size()) = {static_cast<long int>(out_shape[1] * out_shape[2] * out_shape[3]), static_cast<long int>(out_shape[2] * out_shape[3]), static_cast<long int>(out_shape[3]), static_cast<long int>(1)};
     std::vector<long int> modStrides;
 
     bool withModulation = (mask != nullptr);
     if (withModulation)
-        modStrides = std::vector<long int>(mask_shape.size()) = {
-            static_cast<long int>(mask_shape[1] * mask_shape[2] * mask_shape[3]),
-            static_cast<long int>(mask_shape[2] * mask_shape[3]),
-            static_cast<long int>(mask_shape[3]),
-            static_cast<long int>(1)};
+        modStrides = std::vector<long int>(mask_shape.size()) = {static_cast<long int>(mask_shape[1] * mask_shape[2] * mask_shape[3]), static_cast<long int>(mask_shape[2] * mask_shape[3]), static_cast<long int>(mask_shape[3]), static_cast<long int>(1)};
 
-    int* pSampledCoordsVector = sampledCoordsVector.data();
-    float* pInterpWeightsVector = interpWeightsVector.data();
+    bool enforceRef = true;
 
-    auto precompKer = [&](int mb, int dg, int oh, int ow) {
+    int *pSampledCoordsVector = sampledCoordsVector.data();
+    T *pInterpWeightsVector = interpWeightsVector.data();
+
+    auto precompKer = [&](int mb, int dg, int oh, int ow)
+    {
         int sampledCoordIndex = (mb * DG * OH * OW + dg * OH * OW + oh * OW + ow) * KH * KW * sampledPointsPerPixel;
         const int h_in = oh * KSH - padT;
         const int w_in = ow * KSW - padL;
 
-        const float* data_offset_ptr =
-            static_cast<const float*>(offsets + mb * offStrides[0] + (dg * 2 * KH * KW) * offStrides[1]);
-        const float* modulation_offset_ptr = nullptr;
-        if (withModulation) {
+        const int waOffsetH = (enforceRef ? 0 : h_in);
+        const int waOffsetW = (enforceRef ? 0 : w_in);
+
+        const T *data_offset_ptr = offsets + mb * offStrides[0] + (dg * 2 * KH * KW) * offStrides[1];
+        const T *modulation_offset_ptr = nullptr;
+        if (withModulation)
+        {
             modulation_offset_ptr = mask + mb * modStrides[0] + (dg * ker_size) * modStrides[1];
         }
 
-        for (int kh = 0; kh < KH; kh++) {
-            for (int kw = 0; kw < KW; kw++) {
-                const int data_offset_h_index =
-                    2 * ((int)kh * KW + kw) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
-                const int data_offset_w_index =
-                    (2 * ((int)kh * KW + kw) + 1) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
-                const float offset_h = data_offset_ptr[data_offset_h_index];
-                const float offset_w = data_offset_ptr[data_offset_w_index];
-
+        for (int kh = 0; kh < KH; kh++)
+        {
+            for (int kw = 0; kw < KW; kw++)
+            {
+                const int data_offset_h_index = 2 * ((int)kh * KW + kw) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
+                const int data_offset_w_index = (2 * ((int)kh * KW + kw) + 1) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
+                const T offset_h = data_offset_ptr[data_offset_h_index];
+                const T offset_w = data_offset_ptr[data_offset_w_index];
                 float map_h = h_in + kh * (KDH + 1) + offset_h;
                 float map_w = w_in + kw * (KDW + 1) + offset_w;
                 bool skip_compute;
 
-                if (with_bi_pad) {
-                    skip_compute = !(static_cast<int>(map_w) > -1 && static_cast<int>(map_w) < IW &&
-                                     static_cast<int>(map_h) > -1 && static_cast<int>(map_h) < IH);
-                } else {
-                    skip_compute = !(map_w >= 0.f && map_w < IW && map_h >= 0.f && map_h < IH);
+                if (with_bi_pad)
+                {
+                    skip_compute = !(static_cast<int>(map_w) > -1 &&
+                                     static_cast<int>(map_w) < IW &&
+                                     static_cast<int>(map_h) > -1 &&
+                                     static_cast<int>(map_h) < IH);
                 }
-                // if (!skip_compute) {
-                // modulations precomp.
-                float modulation_scalar = 1.0f;
-                if (modulation_offset_ptr != nullptr) {
-                    int modulation_index = (kh * KW + kw) * modStrides[1] + oh * modStrides[2] + ow * modStrides[3];
-                    modulation_scalar = modulation_offset_ptr[modulation_index];
+                else
+                {
+                    skip_compute = !(map_w >= 0.f && map_w < IW &&
+                                     map_h >= 0.f && map_h < IH);
                 }
+                if (!skip_compute)
+                {
+                    // modulations precomp.
+                    T modulation_scalar = 1.0f;
+                    if (modulation_offset_ptr != nullptr)
+                    {
+                        int modulation_index = (kh * KW + kw) * modStrides[1] + oh * modStrides[2] + ow * modStrides[3];
+                        modulation_scalar = modulation_offset_ptr[modulation_index];
+                    }
 
-                // interpolation precomp.
-                const int cur_h_end = IH;
-                const int cur_w_end = IW;
-                int h_low =
-                    with_bi_pad ? static_cast<int>(floorf(map_h)) : std::max(static_cast<int>(floorf(map_h)), 0);
-                int w_low =
-                    with_bi_pad ? static_cast<int>(floorf(map_w)) : std::max(static_cast<int>(floorf(map_w)), 0);
-                int h_high = with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_h_end - 1);
-                int w_high = with_bi_pad ? w_low + 1 : std::min(static_cast<int>(ceilf(map_w)), cur_w_end - 1);
+                    // interpolation precomp.
+                    const int cur_h_end = IH;
+                    const int cur_w_end = IW;
+                    int h_low = with_bi_pad ? static_cast<int>(floorf(map_h)) : std::max(static_cast<int>(floorf(map_h)), 0);
+                    int w_low = with_bi_pad ? static_cast<int>(floorf(map_w)) : std::max(static_cast<int>(floorf(map_w)), 0);
+                    int h_high = with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_h_end - 1);
+                    int w_high = with_bi_pad ? w_low + 1 : std::min(static_cast<int>(ceilf(map_w)), cur_w_end - 1);
 
-                float lh = map_h - h_low;
-                float lw = map_w - w_low;
-                float hh = 1 - lh, hw = 1 - lw;
+                    float lh = map_h - h_low;
+                    float lw = map_w - w_low;
+                    float hh = 1 - lh, hw = 1 - lw;
 
-                int h_ind_low = std::max(h_low, 0);
-                int h_ind_high = std::min(h_high, cur_h_end - 1);
-                int w_ind_low = std::max(w_low, 0);
-                int w_ind_high = std::min(w_high, cur_w_end - 1);
+                    int h_ind_low = std::max(h_low, 0) - waOffsetH;
+                    int h_ind_high = std::min(h_high, cur_h_end - 1) - waOffsetH;
+                    int w_ind_low = std::max(w_low, 0) - waOffsetW;
+                    int w_ind_high = std::min(w_high, cur_w_end - 1) - waOffsetW;
 
-                hh = (h_low >= 0 ? hh : 0);
-                hw = (w_low >= 0 ? hw : 0);
-                lh = (h_high < cur_h_end ? lh : 0);
-                lw = (w_high < cur_w_end ? lw : 0);
+                    hh = (h_low >= 0 ? hh : 0);
+                    hw = (w_low >= 0 ? hw : 0);
+                    lh = (h_high < cur_h_end ? lh : 0);
+                    lw = (w_high < cur_w_end ? lw : 0);
 
-                const int h_off_low = h_ind_low * (srcStrides[2] / srcStrides[3]);
-                const int h_off_high = h_ind_high * (srcStrides[2] / srcStrides[3]);
-                const int w_off_low = w_ind_low;
-                const int w_off_high = w_ind_high;
-                pSampledCoordsVector[sampledCoordIndex] = !skip_compute * (h_off_high + w_off_high);
-                pSampledCoordsVector[sampledCoordIndex + !skip_compute * 1] = !skip_compute * (h_off_high + w_off_low);
-                pSampledCoordsVector[sampledCoordIndex + !skip_compute * 2] = !skip_compute * (h_off_low + w_off_high);
-                pSampledCoordsVector[sampledCoordIndex + !skip_compute * 3] = !skip_compute * (h_off_low + w_off_low);
+                    const int h_off_low = h_ind_low * (srcStrides[2] / srcStrides[3]);
+                    const int h_off_high = h_ind_high * (srcStrides[2] / srcStrides[3]);
+                    const int w_off_low = w_ind_low;
+                    const int w_off_high = w_ind_high;
+                    pSampledCoordsVector[sampledCoordIndex] = h_off_high + w_off_high;
+                    pSampledCoordsVector[sampledCoordIndex + 1] = h_off_high + w_off_low;
+                    pSampledCoordsVector[sampledCoordIndex + 2] = h_off_low + w_off_high;
+                    pSampledCoordsVector[sampledCoordIndex + 3] = h_off_low + w_off_low;
 
-                float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
-                      w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
+                    T w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
+                          w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
 
-                pInterpWeightsVector[sampledCoordIndex] = !skip_compute * w11;
-                pInterpWeightsVector[sampledCoordIndex + 1] = !skip_compute * w12;
-                pInterpWeightsVector[sampledCoordIndex + 2] = !skip_compute * w21;
-                pInterpWeightsVector[sampledCoordIndex + 3] = !skip_compute * w22;
-                // } else {
-                //     pSampledCoordsVector[sampledCoordIndex] = 0;
-
-                //     pInterpWeightsVector[sampledCoordIndex] = 0;
-                //     pInterpWeightsVector[sampledCoordIndex + 1] = 0;
-                //     pInterpWeightsVector[sampledCoordIndex + 2] = 0;
-                //     pInterpWeightsVector[sampledCoordIndex + 3] = 0;
-                // }
+                    pInterpWeightsVector[sampledCoordIndex] = w11;
+                    pInterpWeightsVector[sampledCoordIndex + 1] = w12;
+                    pInterpWeightsVector[sampledCoordIndex + 2] = w21;
+                    pInterpWeightsVector[sampledCoordIndex + 3] = w22;
+                }
+                else
+                {
+                    pSampledCoordsVector[sampledCoordIndex] = 0;
+                    pInterpWeightsVector[sampledCoordIndex] = 0;
+                    pInterpWeightsVector[sampledCoordIndex + 1] = 0;
+                    pInterpWeightsVector[sampledCoordIndex + 2] = 0;
+                    pInterpWeightsVector[sampledCoordIndex + 3] = 0;
+                }
                 sampledCoordIndex += sampledPointsPerPixel;
             }
         }
     };
 
-    parallel_nd(MB, DG, OH, OW, [&](int64_t mb, int64_t dg, int64_t oh, int64_t ow) {
-        precompKer(mb, dg, oh, ow);
-    });
+    parallel_nd(MB, DG, OH, OW, [&](int64_t mb, int64_t dg, int64_t oh, int64_t ow)
+                { precompKer(mb, dg, oh, ow); });
 
     const int channel_per_deformable_group = (IC * G) / DG;
     const int group_wei_stride = weiStrides[0] * OC;
 
-    auto compKer = [=](int g, int mb, int oc, int oh, int ow) {
-        float32_t d = 0;
-        // float32x4_t res = vdupq_n_f32(0);
-        // T d = 0;
-        for (int ic = 0; ic < IC; ic++) {
-            const float* data_im_ptr = in + mb * srcStrides[0] + (g * IC + ic) * srcStrides[1];
+    auto compKer = [=](int g, int mb, int oc, int oh, int ow)
+    {
+        T d = 0;
+        for (int ic = 0; ic < IC; ic++)
+        {
+            const T *data_im_ptr = in + mb * srcStrides[0] + (g * IC + ic) * srcStrides[1];
             const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
-            int sampledCoordIndex =
-                (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
+            int sampledCoordIndex = (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
 
             int weiIndex = (int)g * group_wei_stride + oc * weiStrides[0] + ic * weiStrides[1];
 
-            // for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
-            //     for (int kw_off = 0; kw_off < ker_four; kw_off += weiStrides[3] + 4) {
-            for (uint32_t k_off = 0; k_off < (ker_size / 4); k_off += 1) {
-                // check if current addendum marked as equal zero
-                // bool addendum_is_zero = (pSampledCoordsVector[sampledCoordIndex] != -1);
+            for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2])
+            {
+                // #pragma unroll
+                for (int kw_off = 0; kw_off < KW * weiStrides[3]; kw_off += weiStrides[3])
+                {
+                    // check if current addendum marked as equal zero
+                    // bool addendum_is_zero = (pSampledCoordsVector[sampledCoordIndex] != -1);
+                    if (pSampledCoordsVector[sampledCoordIndex] != -1)
+                    {
+                        const int v11 = pSampledCoordsVector[sampledCoordIndex];
+                        const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
+                        const int v21 = pSampledCoordsVector[sampledCoordIndex + 2];
+                        const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
+                        T val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11]; // v11
+                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];      // v12
+                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];      // v21
+                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];      // v22
 
-                // const int v11 = pSampledCoordsVector[sampledCoordIndex];
-                // const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
-                // const int v21 = pSampledCoordsVector[sampledCoordIndex + 2];
-                // const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
-                // T val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
-                // val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];   // v12
-                // val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];   // v21
-                // val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];   // v22
-
-                // d += ((val * filters[weiIndex + kh_off + kw_off]) * addendum_is_zero);
-
-                const int32x4_t vec1 = vld1q_s32(pSampledCoordsVector + sampledCoordIndex);
-                const int32x4_t vec2 = vld1q_s32(pSampledCoordsVector + sampledCoordIndex + 4);
-                const int32x4_t vec3 = vld1q_s32(pSampledCoordsVector + sampledCoordIndex + 8);
-                const int32x4_t vec4 = vld1q_s32(pSampledCoordsVector + sampledCoordIndex + 12);
-
-                float32x4_t val = vdupq_n_f32(0);
-                val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[0]];  // v11
-                val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[1]];  // v12
-                val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[2]];  // v21
-                val[0] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec1[3]];  // v22
-                val[0] *= (pSampledCoordsVector[sampledCoordIndex] != -1);
-
-                val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[0]];  // v11
-                val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[1]];  // v12
-                val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[2]];  // v21
-                val[1] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec2[3]];  // v22
-                val[1] *= (pSampledCoordsVector[sampledCoordIndex] != -1);
-
-                val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[0]];  // v11
-                val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[1]];  // v12
-                val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[2]];  // v21
-                val[2] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec3[3]];  // v22
-                val[2] *= (pSampledCoordsVector[sampledCoordIndex] != -1);
-
-                val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[0]];  // v11
-                val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[1]];  // v12
-                val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[2]];  // v21
-                val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[3]];  // v22
-                val[3] *= (pSampledCoordsVector[sampledCoordIndex] != -1);
-
-                // d += (val * filters[weiIndex + kh_off + kw_off] * addendum_is_zero);
-                // const float32x4_t vec_weights = vld1q_f32(filters + (weiIndex + kh_off + kw_off));
-                const float32x4_t vec_weights = vld1q_f32(filters + (weiIndex + 4 * k_off));
-                // res = vmlaq_f32(res, val, vec_weights);
-                float32x4_t ew_mul_reg = vmulq_f32(val, vec_weights);
-                float32_t ew_mul_mem[4];
-                vst1q_f32(ew_mul_mem, ew_mul_reg);
-
-                // d += res[0] + res[1] + res[2] + res[3];
-                d += ew_mul_mem[0] + ew_mul_mem[1] + ew_mul_mem[2] + ew_mul_mem[3];
+                        d += (val * filters[weiIndex + kh_off + kw_off]);
+                        // d += ((val * filters[weiIndex + kh_off + kw_off]) * addendum_is_zero);
+                    }
+                    else
+                    {
+                        sampledCoordIndex += sampledPointsPerPixel;
+                    }
+                }
             }
-
-            // for (int kw_off = (KW * weiStrides[3] - ker_four); kw_off < (KW * weiStrides[3]);
-            //      kw_off += weiStrides[3]) {
-            for (uint8_t l = 0; l < ker_size % 4; l++) {
-                const int v11 = pSampledCoordsVector[sampledCoordIndex];
-                const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
-                const int v21 = pSampledCoordsVector[sampledCoordIndex + 2];
-                const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
-                float val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
-                val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];       // v12
-                val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];       // v21
-                val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];       // v22
-                val *= (pSampledCoordsVector[sampledCoordIndex] != -1);
-
-                // d += (val * filters[weiIndex + kh_off + kw_off]);
-                // d += (val * filters[weiIndex + kw_off]);
-                d += (val * filters[weiIndex + ker_size - ker_size % 4 + l]);
-            }
-            // }
         }
         return d;
     };
 
-    parallel_nd(G, MB, OC, OH, OW, [&](int64_t g, int64_t mb, int64_t oc, int64_t oh, int64_t ow) {
-        out[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] =
-            compKer(g, mb, oc, oh, ow);
-    });
+    parallel_nd(G, MB, OC, OH, OW, [&](int64_t g, int64_t mb, int64_t oc, int64_t oh, int64_t ow)
+                { out[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] = compKer(g, mb, oc, oh, ow); });
 }
-#pragma GCC pop_options
 
 }  // namespace opt_aarch
 
