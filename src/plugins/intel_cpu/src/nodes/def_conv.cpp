@@ -1299,8 +1299,8 @@ static inline void parallel_nd(int64_t D0,
                                const std::function<void(int64_t, int64_t, int64_t, int64_t)>& f) {
     const int64_t work_amount = D0 * D1 * D2 * D3;
     // int nthr = (work_amount == 1 || omp_in_parallel()) ? 1 : omp_get_max_threads();
-    // int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
-    int nthr = 1;
+    int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
+    // int nthr = 1;
 
     if (nthr)
         parallel(nthr, [&](int ithr, int nthr) {
@@ -1316,8 +1316,8 @@ static inline void parallel_nd(int64_t D0,
                                const std::function<void(int64_t, int64_t, int64_t, int64_t, int64_t)>& f) {
     const int64_t work_amount = D0 * D1 * D2 * D3 * D4;
     // int nthr = (work_amount == 1 || omp_in_parallel()) ? 1 : omp_get_max_threads();
-    // int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
-    int nthr = 1;
+    int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
+    // int nthr = 1;
 
     if (nthr)
         parallel(nthr, [&](int ithr, int nthr) {
