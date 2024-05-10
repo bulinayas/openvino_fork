@@ -10,7 +10,10 @@
 
 #include <common/dnnl_thread.hpp>
 #include <common/primitive_hashing_utils.hpp>
-#include <cpu/aarch64/jit_generator.hpp>
+#if defined(__aarch64__)
+#    include <cpu/aarch64/jit_generator.hpp>
+#endif
+
 #include <cpu/x64/jit_generator.hpp>
 #include <string>
 #include <vector>
@@ -1143,28 +1146,28 @@ DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(
     }
 #endif
 }
-
+#if defined(__aarch64__)
 namespace opt_aarch {
 // #include <omp.h>
-#include "arm_neon.h"
-#include "tbb/parallel_for.h"
-#include "tbb/task_arena.h"
+#    include "arm_neon.h"
+// #    include "tbb/parallel_for.h"
+// #    include "tbb/task_arena.h"
 
-inline int dnnl_get_max_threads() {
-    return tbb::this_task_arena::max_concurrency();
-}
-inline int dnnl_in_parallel() {
-    return 0;
-}
-inline int dnnl_get_current_num_threads() {
-    if (dnnl_in_parallel())
-        return 1;
-    return tbb::this_task_arena::max_concurrency();
-}
+// inline int dnnl_get_max_threads() {
+//     return tbb::this_task_arena::max_concurrency();
+// }
+// inline int dnnl_in_parallel() {
+//     return 0;
+// }
+// inline int dnnl_get_current_num_threads() {
+//     if (dnnl_in_parallel())
+//         return 1;
+//     return tbb::this_task_arena::max_concurrency();
+// }
 
 inline int adjust_num_threads(int nthr, dim_t work_amount) {
-    if (nthr == 0)
-        nthr = dnnl_get_current_num_threads();
+    // if (nthr == 0)
+    //     nthr = dnnl_get_current_num_threads();
     return (int)std::min((dim_t)nthr, work_amount);
 }
 
@@ -1283,13 +1286,13 @@ void parallel(int nthr, const std::function<void(int, int)>& f) {
         f(0, 1);
         return;
     }
-    tbb::parallel_for(
-        0,
-        nthr,
-        [&](int ithr) {
-            f(ithr, nthr);
-        },
-        tbb::static_partitioner());
+    // tbb::parallel_for(
+    //     0,
+    //     nthr,
+    //     [&](int ithr) {
+    //         f(ithr, nthr);
+    //     },
+    //     tbb::static_partitioner());
 }
 
 static inline void parallel_nd(int64_t D0,
@@ -1299,8 +1302,8 @@ static inline void parallel_nd(int64_t D0,
                                const std::function<void(int64_t, int64_t, int64_t, int64_t)>& f) {
     const int64_t work_amount = D0 * D1 * D2 * D3;
     // int nthr = (work_amount == 1 || omp_in_parallel()) ? 1 : omp_get_max_threads();
-    int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
-    // int nthr = 1;
+    // int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
+    int nthr = 1;
 
     if (nthr)
         parallel(nthr, [&](int ithr, int nthr) {
@@ -1316,8 +1319,8 @@ static inline void parallel_nd(int64_t D0,
                                const std::function<void(int64_t, int64_t, int64_t, int64_t, int64_t)>& f) {
     const int64_t work_amount = D0 * D1 * D2 * D3 * D4;
     // int nthr = (work_amount == 1 || omp_in_parallel()) ? 1 : omp_get_max_threads();
-    int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
-    // int nthr = 1;
+    // int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
+    int nthr = 1;
 
     if (nthr)
         parallel(nthr, [&](int ithr, int nthr) {
@@ -1325,8 +1328,8 @@ static inline void parallel_nd(int64_t D0,
         });
 }
 
-#pragma GCC push_options
-#pragma GCC optimize("unroll-loops")
+#    pragma GCC push_options
+#    pragma GCC optimize("unroll-loops")
 // template <typename T>
 void deformable_convolution_cpu(const float* in,
                                 const float* offsets,
@@ -1608,10 +1611,11 @@ void deformable_convolution_cpu(const float* in,
             compKer(g, mb, oc, oh, ow);
     });
 }
-#pragma GCC pop_options
+#    pragma GCC pop_options
 
 }  // namespace opt_aarch
 
+#endif
 void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
                                                      const float* offsets,
                                                      const float* weights,
@@ -1619,44 +1623,48 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
                                                      float* dst,
                                                      int* pSampledCoordsVector,
                                                      float* pInterpWeightsVector) {
+    // #if defined(__aarch64__)
+    if (0) {
 #if defined(__aarch64__)
-    const int64_t groups = jcp.ngroups;
-    const int64_t deformable_groups = jcp.dg;
-    const std::vector<int>& in_shape{jcp.mb, static_cast<int>(jcp.ic * groups), jcp.ih, jcp.iw};
-    const std::vector<int>& filter_shape{static_cast<int>(jcp.oc), static_cast<int>(jcp.ic), jcp.kh, jcp.kw};
-    const std::vector<int>& out_shape{jcp.mb, static_cast<int>(jcp.oc * groups), jcp.oh, jcp.ow};
-    const std::vector<int>& offset_shape{
-        jcp.mb,
-        static_cast<int>(deformable_groups * filter_shape[2] * filter_shape[3] * 2),
-        out_shape[2],
-        out_shape[3],
-    };
+        const int64_t groups = jcp.ngroups;
+        const int64_t deformable_groups = jcp.dg;
+        const std::vector<int>& in_shape{jcp.mb, static_cast<int>(jcp.ic * groups), jcp.ih, jcp.iw};
+        const std::vector<int>& filter_shape{static_cast<int>(jcp.oc), static_cast<int>(jcp.ic), jcp.kh, jcp.kw};
+        const std::vector<int>& out_shape{jcp.mb, static_cast<int>(jcp.oc * groups), jcp.oh, jcp.ow};
+        const std::vector<int>& offset_shape{
+            jcp.mb,
+            static_cast<int>(deformable_groups * filter_shape[2] * filter_shape[3] * 2),
+            out_shape[2],
+            out_shape[3],
+        };
 
-    const std::vector<int> mask_shape = {offset_shape[0], offset_shape[1] / 2, offset_shape[2], offset_shape[3]};
-    const std::vector<int>& strides{jcp.stride_h, jcp.stride_w};
-    const std::vector<int>& dilation{jcp.dilate_h + 1, jcp.dilate_w + 1};
-    const std::vector<std::ptrdiff_t>& pads_begin{jcp.t_pad, jcp.l_pad};
+        const std::vector<int> mask_shape = {offset_shape[0], offset_shape[1] / 2, offset_shape[2], offset_shape[3]};
+        const std::vector<int>& strides{jcp.stride_h, jcp.stride_w};
+        const std::vector<int>& dilation{jcp.dilate_h + 1, jcp.dilate_w + 1};
+        const std::vector<std::ptrdiff_t>& pads_begin{jcp.t_pad, jcp.l_pad};
 
-    const bool bilinear_interpolation_pad = jcp.with_bi_pad;
+        const bool bilinear_interpolation_pad = jcp.with_bi_pad;
 
-    opt_aarch::deformable_convolution_cpu(src,
-                                          offsets,
-                                          weights,
-                                          modulation,
-                                          dst,
-                                          in_shape,
-                                          offset_shape,
-                                          filter_shape,
-                                          mask_shape,
-                                          out_shape,
-                                          strides,
-                                          dilation,
-                                          pads_begin,
-                                          pads_begin,
-                                          groups,
-                                          deformable_groups,
-                                          bilinear_interpolation_pad);
-#else
+        opt_aarch::deformable_convolution_cpu(src,
+                                              offsets,
+                                              weights,
+                                              modulation,
+                                              dst,
+                                              in_shape,
+                                              offset_shape,
+                                              filter_shape,
+                                              mask_shape,
+                                              out_shape,
+                                              strides,
+                                              dilation,
+                                              pads_begin,
+                                              pads_begin,
+                                              groups,
+                                              deformable_groups,
+                                              bilinear_interpolation_pad);
+#endif
+    }
+    // #else
     this->pSampledCoordsVector = pSampledCoordsVector;
     this->pInterpWeightsVector = pInterpWeightsVector;
     prepareSamplingWeights(offsets, modulation, true);
@@ -1712,7 +1720,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
         dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] =
             compKer(g, mb, oc, oh, ow);
     });
-#endif
+    // #endif
 }
 
 void DeformableConvolution::prepareParams() {
