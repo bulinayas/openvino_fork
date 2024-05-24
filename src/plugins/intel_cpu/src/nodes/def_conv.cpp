@@ -1480,7 +1480,11 @@ void deformable_convolution_cpu(const float* in,
                 int8_t sampledCoordIndexes[] = {sampledCoordIndex,
                                                  sampledCoordIndex + static_cast<int8_t>(!skip_compute * 1),
                                                  sampledCoordIndex + static_cast<int8_t>(!skip_compute * 2),
-                                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 3)};
+                                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 3),
+                                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 4),
+                                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 5),
+                                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 6),
+                                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 7)};
                 
 
                 int8x8_t pSampledCoordsVec8 = vld1_s8(pSampledCoordsVector);
