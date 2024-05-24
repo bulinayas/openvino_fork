@@ -23,7 +23,8 @@ elseif(OV_COMPILER_IS_CLANG)
 endif()
 
 if(ARM)
-    add_compile_options(-march=armv8-a+fp+simd)
+    # add_compile_options(-march=armv8-a+fp+simd)
+    add_compile_options(-D__ARM__ -march=armv7-a -mtune=cortex-a8 -mfloat-abi=hard -mfpu=neon)
 endif()
 
 if (WIN32)
