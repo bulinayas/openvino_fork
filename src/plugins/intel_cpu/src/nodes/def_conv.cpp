@@ -1299,8 +1299,8 @@ static inline void parallel_nd(int64_t D0,
                                const std::function<void(int64_t, int64_t, int64_t, int64_t)>& f) {
     const int64_t work_amount = D0 * D1 * D2 * D3;
     // int nthr = (work_amount == 1 || omp_in_parallel()) ? 1 : omp_get_max_threads();
-    int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
-    // int nthr = 1;
+    // int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
+    int nthr = 1;
 
     if (nthr)
         parallel(nthr, [&](int ithr, int nthr) {
@@ -1316,8 +1316,8 @@ static inline void parallel_nd(int64_t D0,
                                const std::function<void(int64_t, int64_t, int64_t, int64_t, int64_t)>& f) {
     const int64_t work_amount = D0 * D1 * D2 * D3 * D4;
     // int nthr = (work_amount == 1 || omp_in_parallel()) ? 1 : omp_get_max_threads();
-    int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
-    // int nthr = 1;
+    // int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
+    int nthr = 1;
 
     if (nthr)
         parallel(nthr, [&](int ithr, int nthr) {
@@ -1478,7 +1478,7 @@ void deformable_convolution_cpu(const float* in,
                 const int w_off_high = w_ind_high;
 
                 std::cout << "before pSampledCoordsVector[" << sampledCoordIndex
-                          << "] = " << pSampledCoordsVector[sampledCoordIndex];
+                          << "] = " << pSampledCoordsVector[sampledCoordIndex] << "\n";
                 int8_t sampledCoordIndexes[] = {sampledCoordIndex,
                                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 1),
                                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 2),
@@ -1496,11 +1496,11 @@ void deformable_convolution_cpu(const float* in,
                 pSampledCoordsVecRes8[1] = !skip_compute * (h_off_high + w_off_low);
                 pSampledCoordsVecRes8[2] = !skip_compute * (h_off_low + w_off_high);
                 pSampledCoordsVecRes8[3] = !skip_compute * (h_off_low + w_off_low);
-                std::cout << "before pSampledCoordsVecRes8[0] = " << pSampledCoordsVecRes8[0];
+                std::cout << "before pSampledCoordsVecRes8[0] = " << pSampledCoordsVecRes8[0] << "\n";
 
                 // vst1_s8(pSampledCoordsVector + sampledCoordIndex, pSampledCoordsVecRes8);
                 std::cout << "after pSampledCoordsVector[" << sampledCoordIndex
-                          << "] = " << pSampledCoordsVector[sampledCoordIndex];
+                          << "] = " << pSampledCoordsVector[sampledCoordIndex] << "\n";
 
                 float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
                       w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
