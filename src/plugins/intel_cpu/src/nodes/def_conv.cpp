@@ -1477,8 +1477,8 @@ void deformable_convolution_cpu(const float* in,
                 const int w_off_low = w_ind_low;
                 const int w_off_high = w_ind_high;
 
-                std::cout << "before pSampledCoordsVector[" << sampledCoordIndex
-                          << "] = " << pSampledCoordsVector[sampledCoordIndex] << "\n";
+                std::cout << "before pSampledCoordsVector[" << (int)sampledCoordIndex
+                          << "] = " << (int)pSampledCoordsVector[sampledCoordIndex] << "\n";
                 int8_t sampledCoordIndexes[] = {sampledCoordIndex,
                                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 1),
                                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 2),
@@ -1496,11 +1496,11 @@ void deformable_convolution_cpu(const float* in,
                 pSampledCoordsVecRes8[1] = !skip_compute * (h_off_high + w_off_low);
                 pSampledCoordsVecRes8[2] = !skip_compute * (h_off_low + w_off_high);
                 pSampledCoordsVecRes8[3] = !skip_compute * (h_off_low + w_off_low);
-                std::cout << "before pSampledCoordsVecRes8[0] = " << pSampledCoordsVecRes8[0] << "\n";
+                std::cout << "before pSampledCoordsVecRes8[0] = " << (int)pSampledCoordsVecRes8[0] << "\n";
 
                 // vst1_s8(pSampledCoordsVector + sampledCoordIndex, pSampledCoordsVecRes8);
-                std::cout << "after pSampledCoordsVector[" << sampledCoordIndex
-                          << "] = " << pSampledCoordsVector[sampledCoordIndex] << "\n";
+                std::cout << "after pSampledCoordsVector[" << (int)sampledCoordIndex
+                          << "] = " << (int)pSampledCoordsVector[sampledCoordIndex] << "\n";
 
                 float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
                       w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
