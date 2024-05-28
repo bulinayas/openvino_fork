@@ -1426,9 +1426,9 @@ void deformable_convolution_cpu(const float* in,
         for (int kh = 0; kh < KH; kh++) {
             for (int kw = 0; kw < KW; kw++) {
                 const int data_offset_h_index =
-                    2 * ((int)kh * KW + kw) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
+                    2 * (kh * KW + kw) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
                 const int data_offset_w_index =
-                    (2 * ((int)kh * KW + kw) + 1) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
+                    (2 * (kh * KW + kw) + 1) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
                 const float offset_h = data_offset_ptr[data_offset_h_index];
                 const float offset_w = data_offset_ptr[data_offset_w_index];
 
@@ -1442,7 +1442,7 @@ void deformable_convolution_cpu(const float* in,
                 } else {
                     skip_compute = !(map_w >= 0.f && map_w < IW && map_h >= 0.f && map_h < IH);
                 }
-                // if (!skip_compute) {
+
                 // modulations precomp.
                 float modulation_scalar = 1.0f;
                 if (modulation_offset_ptr != nullptr) {
@@ -1477,36 +1477,10 @@ void deformable_convolution_cpu(const float* in,
                 const int w_off_low = w_ind_low;
                 const int w_off_high = w_ind_high;
 
-                // std::cout << "before pSampledCoordsVector[" << (int)sampledCoordIndex
-                //           << "] = " << (int)pSampledCoordsVector[sampledCoordIndex] << "\n";
-                // int8_t sampledCoordIndexes[] = {sampledCoordIndex,
-                //                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 1),
-                //                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 2),
-                //                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 3),
-                //                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 4),
-                //                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 5),
-                //                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 6),
-                //                                 sampledCoordIndex + static_cast<int8_t>(!skip_compute * 7)};
-
-                // int8x8_t pSampledCoordsVec8 = vld1_s8(pSampledCoordsVector);
-                // int8x8_t sampledCoordInd8 = vld1_s8(sampledCoordIndexes);
-                // int8x8_t pSampledCoordsVecRes8 = vtbl1_s8(pSampledCoordsVec8, sampledCoordInd8);
-
-                // pSampledCoordsVecRes8[0] = !skip_compute * (h_off_high + w_off_high);
-                // pSampledCoordsVecRes8[1] = !skip_compute * (h_off_high + w_off_low);
-                // pSampledCoordsVecRes8[2] = !skip_compute * (h_off_low + w_off_high);
-                // pSampledCoordsVecRes8[3] = !skip_compute * (h_off_low + w_off_low);
-
                 pSampledCoordsVector[sampledCoordIndex] = !skip_compute * (h_off_high + w_off_high);
                 pSampledCoordsVector[sampledCoordIndex + !skip_compute * 1] = !skip_compute * (h_off_high + w_off_low);
                 pSampledCoordsVector[sampledCoordIndex + !skip_compute * 2] = !skip_compute * (h_off_low + w_off_high);
                 pSampledCoordsVector[sampledCoordIndex + !skip_compute * 3] = !skip_compute * (h_off_low + w_off_low);
-
-                // std::cout << "before pSampledCoordsVecRes8[0] = " << (int)pSampledCoordsVecRes8[0] << "\n";
-
-                // vst1_s8(pSampledCoordsVector + sampledCoordIndex, pSampledCoordsVecRes8);
-                // std::cout << "after pSampledCoordsVector[" << (int)sampledCoordIndex
-                //           << "] = " << (int)pSampledCoordsVector[sampledCoordIndex] << "\n";
 
                 float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
                       w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
@@ -1540,22 +1514,8 @@ void deformable_convolution_cpu(const float* in,
 
             int weiIndex = (int)g * group_wei_stride + oc * weiStrides[0] + ic * weiStrides[1];
 
-            // for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
-            //     for (int kw_off = 0; kw_off < ker_four; kw_off += weiStrides[3] + 4) {
             for (uint32_t k_off = 0; k_off < (ker_size / 4); k_off += 1) {
                 // check if current addendum marked as equal zero
-                // bool addendum_is_zero = (pSampledCoordsVector[sampledCoordIndex] != -1);
-
-                // const int v11 = pSampledCoordsVector[sampledCoordIndex];
-                // const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
-                // const int v21 = pSampledCoordsVector[sampledCoordIndex + 2];
-                // const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
-                // T val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
-                // val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];   // v12
-                // val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];   // v21
-                // val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];   // v22
-
-                // d += ((val * filters[weiIndex + kh_off + kw_off]) * addendum_is_zero);
 
                 const int32x4_t vec1 = vld1q_s32(pSampledCoordsVector + sampledCoordIndex);
                 const int32x4_t vec2 = vld1q_s32(pSampledCoordsVector + sampledCoordIndex + 4);
@@ -1587,10 +1547,7 @@ void deformable_convolution_cpu(const float* in,
                 val[3] += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[vec4[3]];  // v22
                 val[3] *= (pSampledCoordsVector[sampledCoordIndex] != -1);
 
-                // d += (val * filters[weiIndex + kh_off + kw_off] * addendum_is_zero);
-                // const float32x4_t vec_weights = vld1q_f32(filters + (weiIndex + kh_off + kw_off));
                 const float32x4_t vec_weights = vld1q_f32(filters + (weiIndex + 4 * k_off));
-                // res = vmlaq_f32(res, val, vec_weights);
                 float32x4_t ew_mul_reg = vmulq_f32(val, vec_weights);
                 float32_t ew_mul_mem[4];
                 vst1q_f32(ew_mul_mem, ew_mul_reg);
@@ -1599,8 +1556,6 @@ void deformable_convolution_cpu(const float* in,
                 d += ew_mul_mem[0] + ew_mul_mem[1] + ew_mul_mem[2] + ew_mul_mem[3];
             }
 
-            // for (int kw_off = (KW * weiStrides[3] - ker_four); kw_off < (KW * weiStrides[3]);
-            //      kw_off += weiStrides[3]) {
             for (uint8_t l = 0; l < ker_size % 4; l++) {
                 const int v11 = pSampledCoordsVector[sampledCoordIndex];
                 const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
@@ -1612,11 +1567,9 @@ void deformable_convolution_cpu(const float* in,
                 val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];       // v22
                 val *= (pSampledCoordsVector[sampledCoordIndex] != -1);
 
-                // d += (val * filters[weiIndex + kh_off + kw_off]);
-                // d += (val * filters[weiIndex + kw_off]);
+
                 d += (val * filters[weiIndex + ker_size - ker_size % 4 + l]);
             }
-            // }
         }
         return d;
     };

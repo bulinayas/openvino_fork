@@ -24,7 +24,7 @@ endif()
 
 if(ARM)
     # add_compile_options(-march=armv8-a+fp+simd)
-    add_compile_options(-D__ARM__ -march=armv7-a -mtune=cortex-a8 -mfloat-abi=hard -mfpu=neon)
+    add_compile_options(-march=armv8.6-a+sve2)
 endif()
 
 if (WIN32)
